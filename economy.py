@@ -1,19 +1,23 @@
 from typing import Dict, Union
+from colorama import Fore, Style
 
 # Constants
-INITIAL_MONEY = 5000  # Starting amount
 TARGET_MONEY = 5000   # Amount at which rational AI is satisfied
-MONEY_WEIGHT = 0.4    # Base weight for money in decisions (less than health/energy importance)
+MONEY_WEIGHT = 0.4    # Base weight for money in decisions
+
+def color_money(amount: float) -> str:
+    """Color-code money amount based on thresholds"""
+    if amount >= 5000:
+        return f"{Fore.GREEN}Ƶ{amount:.0f}{Style.RESET_ALL}"
+    elif amount >= 1000:
+        return f"{Fore.YELLOW}Ƶ{amount:.0f}{Style.RESET_ALL}"
+    else:
+        return f"{Fore.RED}Ƶ{amount:.0f}{Style.RESET_ALL}"
 
 def calculate_money_factor(current_money: float) -> float:
-    """
-    Calculate how much the AI should care about making more money.
-    Returns a value between 0.1 and 1.0.
-    """
+    """Calculate how much the AI should care about making more money."""
     if current_money >= TARGET_MONEY:
-        return 0.1  # Minimal interest in making more money
-    
-    # Linear decrease as money approaches target
+        return 0.1
     factor = 1.0 - (current_money / TARGET_MONEY) * 0.9
     return max(0.1, factor)
 

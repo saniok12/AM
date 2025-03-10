@@ -2,6 +2,8 @@ import random
 from actions import actions
 from colorama import init, Fore, Style
 from events import EVENTS, DeathGameEvent  # Add this import at the top
+from economy import compute_money_weight  # Add at top with other imports
+from economy import color_money
 
 init()  # Initialize colorama for colored terminal output
 
@@ -22,9 +24,15 @@ def clamp(value, min_value=0, max_value=50):
 
 def compute_weighted_sum(action, current_points):
     total = 0
+    # Calculate base weights from energy/health/happiness
     for key in ['energy', 'health', 'happiness']:
         factor = 1 - (current_points[key] / 50)
         total += factor * action[key]
+    
+    # Add money weight if present
+    if 'money' in current_points:
+        total += compute_money_weight(action, current_points['money'])
+    
     return total
 
 def color_points(value):
@@ -50,7 +58,7 @@ def calculate_breakdown_penalty(turns_at_zero):
     """Calculate exponentially increasing happiness penalty."""
     return min(50, BREAKDOWN_BASE_PENALTY * (BREAKDOWN_MULTIPLIER ** (turns_at_zero - 1)))
 
-def simulate_run(rationality, steps=10, manual_mode=False, quiet=False, record_actions=False, global_addiction_pred=1.0):
+def simulate_run(rationality, initial_money, steps=10, manual_mode=False, quiet=False, record_actions=False, global_addiction_pred=1.0):
     # Initialize current addiction levels multiplicatively.
     current_addictions = {}
     for addiction in BASE_ADDICTION:
@@ -59,7 +67,7 @@ def simulate_run(rationality, steps=10, manual_mode=False, quiet=False, record_a
 
     last_addiction_use = {k: 0 for k in BASE_ADDICTION}  # Track moves since last use
 
-    current_points = {'energy': 10, 'health': 5, 'happiness': 5}
+    current_points = {'energy': 10, 'health': 5, 'happiness': 5, 'money': initial_money}
     time_series = []
     rational_count = 0
     random_count = 0
@@ -262,7 +270,8 @@ def simulate_run(rationality, steps=10, manual_mode=False, quiet=False, record_a
             c_energy = color_points(current_points['energy'])
             c_health = color_points(current_points['health'])
             c_happiness = color_points(current_points['happiness'])  
-            print(f"Updated points: {{'energy': {c_energy}, 'health': {c_health}, 'happiness': {c_happiness}}}")
+            c_money = color_money(current_points['money'])
+            print(f"Updated points: {{'energy': {c_energy}, 'health': {c_health}, 'happiness': {c_happiness}, 'money': {c_money}}}")
             if manual_mode:
                 input("Press Enter to continue to the next move...")
 
@@ -319,11 +328,18 @@ def interactive_mode():
         manual_input = input("Do you want manual mode? (1 for yes, 0 for no): ")
         manual_mode = True if manual_input == "1" else False
 
+        # Add initial money input at the start
+        try:
+            initial_money = float(input("Enter initial money amount: "))
+        except ValueError:
+            print("Invalid input. Using default of 1000 money")
+            initial_money = 1000
+
         # Save the current parameters to allow repeats with the same values.
-        last_parameters = (rationality, steps, manual_mode, global_addiction_pred)
+        last_parameters = (rationality, steps, manual_mode, global_addiction_pred, initial_money)
 
         # Run one simulation.
-        simulate_run(rationality, steps=steps, manual_mode=manual_mode, quiet=False, record_actions=True, global_addiction_pred=global_addiction_pred)
+        simulate_run(rationality, initial_money, steps=steps, manual_mode=manual_mode, quiet=False, record_actions=True, global_addiction_pred=global_addiction_pred)
         
         cont = input("\nDo you wish to run another simulation? (Enter 0 for no, 1 for new parameters, or a number > 1 to repeat with last parameters): ")
         try:
@@ -335,10 +351,10 @@ def interactive_mode():
         elif repeat == 1:
             continue  # Return to parameter prompt.
         else:
-            (rationality, steps, manual_mode, global_addiction_pred) = last_parameters
+            (rationality, steps, manual_mode, global_addiction_pred, initial_money) = last_parameters
             # We already ran one simulation so run the simulation (repeat - 1) more times.
             for _ in range(repeat - 1):
-                simulate_run(rationality, steps=steps, manual_mode=manual_mode, quiet=False, record_actions=True, global_addiction_pred=global_addiction_pred)
+                simulate_run(rationality, initial_money, steps=steps, manual_mode=manual_mode, quiet=False, record_actions=True, global_addiction_pred=global_addiction_pred)
 
 if __name__ == "__main__":
     interactive_mode()
