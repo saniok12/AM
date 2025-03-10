@@ -179,6 +179,7 @@ def simulate_run(rationality, initial_money, steps=10, manual_mode=False, quiet=
                     if not quiet:
                         print(f"{Fore.MAGENTA}The AI has become more addicted to {addiction}; its addiction level is now {current_addictions[addiction]*100:.1f}%{Style.RESET_ALL}")
 
+        # In the simulate_run function, modify the action display section:
         if not quiet:
             print("Available actions:")
             for idx, action in enumerate(pool):
@@ -186,6 +187,7 @@ def simulate_run(rationality, initial_money, steps=10, manual_mode=False, quiet=
                 e_str = color_cost(action['energy'])
                 h_str = color_cost(action['health'])
                 happ_str = color_cost(action['happiness'])
+                money_str = color_cost(action.get('money', 0)) if 'money' in action else ""
 
                 # Build a string for addiction info if present
                 addiction_info = ""
@@ -194,8 +196,11 @@ def simulate_run(rationality, initial_money, steps=10, manual_mode=False, quiet=
                     if incr:
                         addiction_info += f" Addiction: {addiction} (+{incr})"
 
+                # Add money to display if present
+                money_display = f", money: {money_str}" if 'money' in action else ""
+                
                 print(f"  {idx+1}. {action['name']} (Weighted Sum: {weighted_scores[idx]:.2f}) "
-                      f"[energy: {e_str}, health: {h_str}, happiness: {happ_str}]{addiction_info}")
+                      f"[energy: {e_str}, health: {h_str}, happiness: {happ_str}{money_display}]{addiction_info}")
 
             print(f"Chosen action: {chosen_action['name']} - {decision_type}")
 
@@ -203,6 +208,10 @@ def simulate_run(rationality, initial_money, steps=10, manual_mode=False, quiet=
         # Update points and check for breakdown conditions
         for key in ['energy', 'health', 'happiness']:
             current_points[key] = clamp(current_points[key] + chosen_action[key])
+
+        # Add money update
+        if 'money' in chosen_action:
+            current_points['money'] += chosen_action['money']
         
         # Apply breakdown penalties
         for stat in ['energy', 'health']:
@@ -296,28 +305,42 @@ def simulate_run(rationality, initial_money, steps=10, manual_mode=False, quiet=
             chosen_actions_list, addiction_overrides, addiction_levels, was_death_game)
 
 def interactive_mode():
+    try:
+        rationality = float(input("Enter rationality (0 to 1): "))
+        if not 0 <= rationality <= 1:
+            raise ValueError
+    except ValueError:
+        print("Invalid input. Using default rationality of 0.5")
+        rationality = 0.5
+
+    try:
+        steps = int(input("Enter number of moves (steps): "))
+    except ValueError:
+        print("Invalid input. Using default of 10 moves.")
+        steps = 10
+
+    try:
+        initial_money = float(input("Enter initial money amount: "))
+    except ValueError:
+        print("Invalid input. Using default of 1000 money")
+        initial_money = 1000
+
+    try:
+        global_addiction_pred = float(input("Enter global addiction predisposition multiplier: "))
+    except ValueError:
+        print("Invalid input. Using default predisposition of 1.0")
+        global_addiction_pred = 1.0
+
+    last_parameters = (rationality, steps, global_addiction_pred, initial_money)
+
     while True:
-        try:
-            rationality = float(input("Enter rationality (0 to 1): "))
-            if not 0 <= rationality <= 1:
-                raise ValueError
-        except ValueError:
-            print("Invalid input. Using default rationality of 0.5")
-            rationality = 0.5
+        manual_input = input("Do you want manual mode? (1 for yes, 0 for no): ")
+        manual_mode = True if manual_input == "1" else False
 
-        try:
-            steps = int(input("Enter number of moves (steps): "))
-        except ValueError:
-            print("Invalid input. Using default of 10 moves.")
-            steps = 10
+        # Save the current parameters to allow repeats with the same values
+        last_parameters = (rationality, steps, manual_mode, global_addiction_pred, initial_money)
 
-        try:
-            global_addiction_pred = float(input("Enter global addiction predisposition multiplier: "))
-        except ValueError:
-            print("Invalid input. Using default predisposition of 1.0")
-            global_addiction_pred = 1.0
-
-        # Display initial effective addiction levels with color coding.
+        # Display initial effective addiction levels
         print("Initial effective addiction levels:")
         for addiction in BASE_ADDICTION:
             base_val = BASE_ADDICTION[addiction]
@@ -325,31 +348,21 @@ def interactive_mode():
                 effective_val = base_val * global_addiction_pred
                 print(f"  {addiction}: {Fore.GREEN}{effective_val*100:.1f}%{Style.RESET_ALL}")
 
-        manual_input = input("Do you want manual mode? (1 for yes, 0 for no): ")
-        manual_mode = True if manual_input == "1" else False
-
-        # Add initial money input at the start
-        try:
-            initial_money = float(input("Enter initial money amount: "))
-        except ValueError:
-            print("Invalid input. Using default of 1000 money")
-            initial_money = 1000
-
-        # Save the current parameters to allow repeats with the same values.
-        last_parameters = (rationality, steps, manual_mode, global_addiction_pred, initial_money)
-
-        # Run one simulation.
+        # Run the simulation
         simulate_run(rationality, initial_money, steps=steps, manual_mode=manual_mode, quiet=False, record_actions=True, global_addiction_pred=global_addiction_pred)
-        
-        cont = input("\nDo you wish to run another simulation? (Enter 0 for no, 1 for new parameters, or a number > 1 to repeat with last parameters): ")
+
+        # Ask if the user wants to repeat the simulation
+        repeat = input("How many times to repeat the simulation? (0 for none): ")
         try:
-            repeat = int(cont)
+            repeat = int(repeat)
         except ValueError:
+            print("Invalid input. Not repeating the simulation.")
             repeat = 0
+
         if repeat == 0:
             break
         elif repeat == 1:
-            continue  # Return to parameter prompt.
+            pass
         else:
             (rationality, steps, manual_mode, global_addiction_pred, initial_money) = last_parameters
             # We already ran one simulation so run the simulation (repeat - 1) more times.

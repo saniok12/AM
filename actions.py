@@ -12,7 +12,7 @@ actions = [
     {"name": "take a walk", "energy": 3, "health": 4, "happiness": 3},
     {"name": "work", "energy": -5, "health": -1, "happiness": 2, "money": 500},
     {"name": "play video games", "energy": -3, "health": -1, "happiness": 6},
-    {"name": "shop", "energy": -1, "health": 0, "happiness": 10, "shopping_addiction": 0.1},
+    {"name": "shop", "energy": -1, "health": 0, "happiness": 10, "shopping_addiction": 0.1,"money": -250},
     {"name": "go for a run", "energy": -6, "health": 8, "happiness": 2},
     {"name": "attend a class", "energy": -2, "health": 2, "happiness": 2, "money": -20},
     {"name": "visit a friend", "energy": -2, "health": 2, "happiness": 4},
