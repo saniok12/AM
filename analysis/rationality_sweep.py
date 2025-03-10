@@ -24,7 +24,8 @@ def rationality_sweep_mode(default_simulations=None, steps=10):
     for r in rationality_values:
         total_energy, total_health, total_happiness = 0, 0, 0
         for _ in range(num_simulations):
-            final_points, _, _, _ = simulate_run(r, steps=steps, manual_mode=False, quiet=True)
+            # Update to unpack all 8 returned values
+            final_points, _, _, _, _, _, _, _ = simulate_run(r, steps=steps, manual_mode=False, quiet=True)
             total_energy += final_points["energy"]
             total_health += final_points["health"]
             total_happiness += final_points["happiness"]

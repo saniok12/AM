@@ -7,10 +7,10 @@ init()  # Initialize colorama for colored terminal output
 
 # Base addiction chances for each type.
 BASE_ADDICTION = {
-    "gambling": 0,
-    "alcohol": 0,    
-    "shopping": 0,
-    "junk_food": 0
+    "gambling": 0.1,
+    "alcohol": 0.2,    
+    "shopping": 0.1,
+    "junk_food": 0.05
 }
 
 # Add these constants at the top of the file after BASE_ADDICTION
