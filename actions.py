@@ -1,0 +1,22 @@
+actions = [
+    {"name": "go to sleep", "energy": 8, "health": 4, "happiness": 2},
+    {"name": "exercise", "energy": -7, "health": 8, "happiness": 1},
+    {"name": "drink", "energy": -6, "health": -14, "happiness": 9, "alcohol_addiction": 0.1},
+    {"name": "watch tv", "energy": 1, "health": 0, "happiness": 3},
+    {"name": "gamble", "energy": -2, "health": 0, "happiness": 6, "gambling_addiction": 0.125},
+    {"name": "read a book", "energy": -1, "health": 2, "happiness": 4},
+    {"name": "meditate", "energy": 2, "health": 3, "happiness": 3},
+    {"name": "socialize", "energy": -3, "health": 2, "happiness": 5},
+    {"name": "eat junk food", "energy": 1, "health": -5, "happiness": 7, "junk_food_addiction": 0.05},
+    {"name": "cook a meal", "energy": -2, "health": 3, "happiness": 4},
+    {"name": "take a walk", "energy": 3, "health": 4, "happiness": 4},
+    {"name": "work", "energy": -5, "health": -1, "happiness": 4},
+    {"name": "play video games", "energy": -3, "health": -1, "happiness": 8},
+    {"name": "shop", "energy": -1, "health": 0, "happiness": 10, "shopping_addiction": 0.1},
+    {"name": "go for a run", "energy": -6, "health": 8, "happiness": 3},
+    {"name": "attend a class", "energy": -2, "health": 2, "happiness": 3},
+    {"name": "visit a friend", "energy": -2, "health": 2, "happiness": 5},
+    {"name": "listen to music", "energy": 1, "health": 0, "happiness": 3},
+    {"name": "clean the house", "energy": -3, "health": 5, "happiness": -1},
+    {"name": "play sports", "energy": -5, "health": 7, "happiness": 3}
+]
