@@ -27,12 +27,22 @@ class DeathGameEvent(Event):
     def __init__(self):
         super().__init__(
             "Death Game",
-            0.01,  # 1% chance
+            None,  # We'll calculate trigger chance dynamically
             lambda state: state['chosen_action']['name'].lower() == 'gamble'
         )
     
+    def check_trigger(self, sim_state):
+        # Calculate trigger chance based on risk tolerance
+        risk_tolerance = sim_state.get('risk_tolerance', 0.0)  # Default to neutral if not provided
+        # Convert risk_tolerance from [-1,1] to [0,1] then scale between 0.001 (0.1%) and 0.05 (5%)
+        base_chance = 0.001 + ((risk_tolerance + 1) / 2) * (0.05 - 0.001)
+        
+        if self.condition_fn(sim_state) and random.random() < base_chance:
+            return self.execute(sim_state)
+        return None
+    
     def execute(self, sim_state):
-        if not sim_state.get('quiet', True):  # Only show dramatic text if not in quiet mode
+        if not sim_state.get('quiet', True):
             print(f"{Fore.YELLOW}{Style.BRIGHT}A DEATH GAME IS COMMENCING!{Style.RESET_ALL}")
             time.sleep(5)
         

@@ -11,10 +11,10 @@ init()  # Initialize colorama for colored terminal output
 
 # Base addiction chances for each type.
 BASE_ADDICTION = {
-    "gambling": 0.1,
-    "alcohol": 0.2,    
-    "shopping": 0.1,
-    "junk_food": 0.05
+    "gambling": 0.5,
+    "alcohol": 0,    
+    "shopping": 0,
+    "junk_food": 0
 }
 
 # Add these constants at the top of the file after BASE_ADDICTION
@@ -241,7 +241,8 @@ def simulate_run(rationality, initial_money, risk_tolerance=0.0, steps=10, manua
             'current_points': current_points,
             'chosen_action': chosen_action,
             'current_addictions': current_addictions,
-            'move': move
+            'move': move,
+            'risk_tolerance': risk_tolerance  # Add this line
         }
 
         for event in EVENTS:

@@ -1,6 +1,16 @@
 from dataclasses import dataclass
 import random
 from colorama import Fore, Style
+from simulation import clamp  # Add this import
+
+MAX_DEBT = 50000
+LOAN_SHARK_RATES = {
+    "small": {"amount": 1000, "turns": 5, "interest": 1.5},
+    "medium": {"amount": 5000, "turns": 4, "interest": 2.0},
+    "large": {"amount": 10000, "turns": 3, "interest": 2.5},
+    "desperate": {"amount": 25000, "turns": 2, "interest": 3.0},
+    "final": {"amount": 50000, "turns": 1, "interest": 4.0}
+}
 
 @dataclass
 class BetProfile:
@@ -60,11 +70,103 @@ def calculate_bet_parameters(profile_name: str, risk_tolerance: float,
     
     return win_chance, payout, bet_amount
 
+class DebtCollector:
+    def __init__(self):
+        self.active_loans = []  # List of (amount, turns_left, total_to_repay)
+        self.total_debt = 0
+        self.loan_count = 0
+
+    def get_loan(self, risk_tolerance: float) -> tuple[float, str]:
+        """Get a loan based on risk tolerance and previous loans"""
+        if self.total_debt >= MAX_DEBT:
+            return (0, f"{Fore.RED}💀 The debt collectors have made the AI disappear...{Style.RESET_ALL}")
+            
+        # Higher risk tolerance and more loans = bigger loans
+        risk_factor = (risk_tolerance + 1) / 2  # Convert to 0-1
+        desperation = min(1.0, self.loan_count * 0.25)  # Increases with each loan
+        
+        if desperation > 0.8 or risk_factor > 0.8:
+            loan_type = "final"
+        elif desperation > 0.6 or risk_factor > 0.6:
+            loan_type = "desperate"
+        elif desperation > 0.4 or risk_factor > 0.4:
+            loan_type = "large"
+        elif desperation > 0.2 or risk_factor > 0.2:
+            loan_type = "medium"
+        else:
+            loan_type = "small"
+            
+        loan = LOAN_SHARK_RATES[loan_type]
+        amount = loan["amount"]
+        turns = loan["turns"]
+        total_to_repay = amount * loan["interest"]
+        
+        self.active_loans.append((amount, turns, total_to_repay))
+        self.total_debt += total_to_repay
+        self.loan_count += 1
+        
+        messages = {
+            "small": f"{Fore.YELLOW}🦈 A shady figure offers a small loan of Ƶ{amount}...{Style.RESET_ALL}",
+            "medium": f"{Fore.YELLOW}🦈 The loan shark grins as they hand over Ƶ{amount}...{Style.RESET_ALL}",
+            "large": f"{Fore.RED}🦈 Desperate times... Borrowing Ƶ{amount} from dangerous people...{Style.RESET_ALL}",
+            "desperate": f"{Fore.RED}☠️ The AI signs away its future for Ƶ{amount}...{Style.RESET_ALL}",
+            "final": f"{Fore.RED}💀 ONE FINAL DESPERATE LOAN OF Ƶ{amount}!!!{Style.RESET_ALL}"
+        }
+        
+        return amount, messages[loan_type]
+
+    def update_loans(self, current_money: float) -> tuple[float, str]:
+        """Update loan timers and collect debts. Returns (money_change, message)"""
+        if not self.active_loans:
+            return (0, "")
+            
+        money_change = 0
+        messages = []
+        new_loans = []
+        
+        for amount, turns, to_repay in self.active_loans:
+            if turns <= 1:
+                if current_money >= to_repay:
+                    money_change -= to_repay
+                    messages.append(f"{Fore.GREEN}Paid back Ƶ{to_repay} loan!{Style.RESET_ALL}")
+                else:
+                    money_change -= to_repay
+                    messages.append(
+                        f"{Fore.RED}Failed to repay Ƶ{to_repay}! "
+                        f"The debt collectors are not happy...{Style.RESET_ALL}"
+                    )
+            else:
+                new_loans.append((amount, turns - 1, to_repay))
+                messages.append(
+                    f"{Fore.YELLOW}Ƶ{to_repay} due in {turns-1} turns!{Style.RESET_ALL}"
+                )
+                
+        self.active_loans = new_loans
+        return money_change, "\n".join(messages)
+
 def execute_gambling(current_points: dict, risk_tolerance: float, 
                     addiction_level: float, quiet: bool = False) -> dict:
     """Execute a gambling action and return the results"""
+    # Add debt collector as a module-level variable
+    global debt_collector
+    if not hasattr(execute_gambling, 'debt_collector'):
+        execute_gambling.debt_collector = DebtCollector()
     
     current_money = current_points['money']
+    
+    # If broke, try to borrow money
+    if current_money == 0:
+        loan_amount, message = execute_gambling.debt_collector.get_loan(risk_tolerance)
+        if loan_amount == 0:  # Game over due to max debt
+            return {
+                'energy': 0,
+                'health': 0,
+                'happiness': 0,
+                'money': 0
+            }
+        if not quiet:
+            print(message)
+        current_money = loan_amount
     
     # Choose gambling profile
     profile_name = choose_gambling_profile(risk_tolerance, addiction_level)
@@ -73,26 +175,48 @@ def execute_gambling(current_points: dict, risk_tolerance: float,
     )
     
     if not quiet:
-        print(f"\n{Fore.YELLOW}Gambling Profile: {profile_name.replace('_', ' ').title()}{Style.RESET_ALL}")
+        # More dramatic profile announcements
+        profile_descriptions = {
+            "low_risk": f"{Fore.CYAN}Playing it safe with a conservative bet...{Style.RESET_ALL}",
+            "medium_risk": f"{Fore.YELLOW}Taking a calculated risk with a balanced bet...{Style.RESET_ALL}",
+            "high_risk": f"{Fore.RED}Going all in with a high-stakes gamble!{Style.RESET_ALL}"
+        }
+        print(f"\n{profile_descriptions[profile_name]}")
         print(f"Win Chance: {win_chance*100:.1f}%")
         print(f"Payout: {payout:.1f}x")
         print(f"Bet Amount: Ƶ{bet}")
     
-    # Execute the bet
+    # Execute the bet with more dramatic outcomes
     if random.random() < win_chance:
         winnings = int(bet * payout)
         money_change = winnings - bet
         if not quiet:
-            print(f"{Fore.GREEN}Won Ƶ{winnings}! (Net: +Ƶ{money_change}){Style.RESET_ALL}")
+            if profile_name == "high_risk":
+                print(f"{Fore.GREEN}JACKPOT! The risky bet pays off big time! +Ƶ{money_change}!{Style.RESET_ALL}")
+            elif profile_name == "medium_risk":
+                print(f"{Fore.GREEN}Success! A nice win of Ƶ{winnings}! (Net: +Ƶ{money_change}){Style.RESET_ALL}")
+            else:
+                print(f"{Fore.GREEN}A safe bet brings a steady profit of Ƶ{winnings}! (Net: +Ƶ{money_change}){Style.RESET_ALL}")
     else:
         money_change = -bet
         if not quiet:
-            print(f"{Fore.RED}Lost Ƶ{bet}{Style.RESET_ALL}")
+            if profile_name == "high_risk":
+                print(f"{Fore.RED}Disaster! The high-stakes gamble backfires! Lost Ƶ{bet}!{Style.RESET_ALL}")
+            elif profile_name == "medium_risk":
+                print(f"{Fore.RED}The risk didn't pay off. Lost Ƶ{bet}.{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}Even the safe bet didn't work out. Lost Ƶ{bet}.{Style.RESET_ALL}")
     
-    # Update and return new points
+    # Update and return new points with clamping
     result = current_points.copy()
-    result['money'] += money_change
-    result['energy'] -= 2  # Base energy cost
-    result['happiness'] += 6 if money_change > 0 else -2  # Happiness impact
+    result['money'] = max(0, result['money'] + money_change)  # Prevent negative money
+    result['energy'] = clamp(result['energy'] - 2)  # Clamp energy
+    result['happiness'] = clamp(result['happiness'] + (6 if money_change > 0 else -2))  # Clamp happiness
+    
+    # Before returning, update loans
+    debt_change, debt_message = execute_gambling.debt_collector.update_loans(result['money'])
+    if not quiet and debt_message:
+        print(debt_message)
+    result['money'] = max(0, result['money'] + debt_change)
     
     return result
