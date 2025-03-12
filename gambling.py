@@ -230,10 +230,13 @@ def execute_gambling(current_points: dict, risk_tolerance: float,
     result = current_points.copy()
     result['money'] = max(0, result['money'] + money_change)  # Prevent negative money
     
-    # Use the base energy value from actions.py (2) plus any boost from winning
-    base_energy = 0  # This matches the value in actions.py
-    result['energy'] = clamp(result['energy'] + base_energy + energy_boost)  # Changed from -2 to +base_energy
-    result['happiness'] = clamp(result['happiness'] + happiness_boost)
+    # Base happiness from action definition (15) plus win/loss modifiers
+    base_happiness = 15  # From actions.py
+    result['happiness'] = clamp(result['happiness'] + base_happiness + happiness_boost)
+    
+    # Energy changes
+    base_energy = 0  # From actions.py
+    result['energy'] = clamp(result['energy'] + base_energy + energy_boost)
     
     # Before returning, update loans
     debt_change, debt_message = execute_gambling.debt_collector.update_loans(result['money'])
