@@ -6,12 +6,13 @@ from economy import compute_money_weight  # Add at top with other imports
 from economy import color_money
 from risk import calculate_risk_adjusted_values  # Add to imports
 from gambling import execute_gambling  # Add to imports
+from utils import clamp
 
 init()  # Initialize colorama for colored terminal output
 
 # Base addiction chances for each type.
 BASE_ADDICTION = {
-    "gambling": 0.5,
+    "gambling": 0.425,
     "alcohol": 0,    
     "shopping": 0,
     "junk_food": 0

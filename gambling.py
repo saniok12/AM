@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import random
 from colorama import Fore, Style
-from simulation import clamp  # Add this import
+from utils import clamp  # Add this import
 
 MAX_DEBT = 50000
 LOAN_SHARK_RATES = {
