@@ -99,18 +99,19 @@ class DebtCollector:
         loan = LOAN_SHARK_RATES[loan_type]
         amount = loan["amount"]
         turns = loan["turns"]
-        total_to_repay = amount * loan["interest"]
+        interest = loan["interest"]
+        total_to_repay = amount * interest
         
         self.active_loans.append((amount, turns, total_to_repay))
         self.total_debt += total_to_repay
         self.loan_count += 1
         
         messages = {
-            "small": f"{Fore.YELLOW}🦈 A shady figure offers a small loan of Ƶ{amount}...{Style.RESET_ALL}",
-            "medium": f"{Fore.YELLOW}🦈 The loan shark grins as they hand over Ƶ{amount}...{Style.RESET_ALL}",
-            "large": f"{Fore.RED}🦈 Desperate times... Borrowing Ƶ{amount} from dangerous people...{Style.RESET_ALL}",
-            "desperate": f"{Fore.RED}☠️ The AI signs away its future for Ƶ{amount}...{Style.RESET_ALL}",
-            "final": f"{Fore.RED}💀 ONE FINAL DESPERATE LOAN OF Ƶ{amount}!!!{Style.RESET_ALL}"
+            "small": f"{Fore.YELLOW}🦈 A shady figure offers a modest loan of Ƶ{amount} at {interest}x interest, to be repaid in {turns} turns (Total to repay: Ƶ{total_to_repay})...{Style.RESET_ALL}",
+            "medium": f"{Fore.YELLOW}🦈 The loan shark grins as they hand over Ƶ{amount} at {interest}x interest, repayable in {turns} turns (Total to repay: Ƶ{total_to_repay})...{Style.RESET_ALL}",
+            "large": f"{Fore.RED}🦈 Desperate times call for drastic measures... Borrowing Ƶ{amount} at {interest}x interest, to be repaid in {turns} turns (Total to repay: Ƶ{total_to_repay}) from dangerous people...{Style.RESET_ALL}",
+            "desperate": f"{Fore.RED}☠️ The AI signs away its future for a massive loan of Ƶ{amount} at {interest}x interest, due in {turns} turns (Total to repay: Ƶ{total_to_repay})...{Style.RESET_ALL}",
+            "final": f"{Fore.RED}💀 ONE FINAL DESPERATE LOAN OF Ƶ{amount} at {interest}x interest, repayable in {turns} turn{'s' if turns > 1 else ''} (Total to repay: Ƶ{total_to_repay})!!!{Style.RESET_ALL}"
         }
         
         return amount, messages[loan_type]
