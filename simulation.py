@@ -61,6 +61,34 @@ def calculate_breakdown_penalty(turns_at_zero):
     """Calculate exponentially increasing happiness penalty."""
     return min(50, BREAKDOWN_BASE_PENALTY * (BREAKDOWN_MULTIPLIER ** (turns_at_zero - 1)))
 
+def check_and_apply_penalties(current_points: dict, zero_stat_turns: dict, quiet: bool = False) -> dict:
+    """Check each stat and apply penalties if at zero"""
+    result = current_points.copy()
+    
+    for stat in ['energy', 'health', 'happiness']:
+        if result[stat] == 0:
+            zero_stat_turns[stat] += 1
+            penalty = calculate_breakdown_penalty(zero_stat_turns[stat])
+            
+            if stat == 'energy':
+                if not quiet:
+                    print(f"{Fore.RED}Warning: Zero energy for {zero_stat_turns[stat]} turns! -{penalty} health and happiness{Style.RESET_ALL}")
+                result['health'] = max(0, result['health'] - penalty)
+                result['happiness'] = max(0, result['happiness'] - penalty)
+            elif stat == 'happiness':
+                if not quiet:
+                    print(f"{Fore.RED}Warning: Zero happiness for {zero_stat_turns[stat]} turns! -{penalty} health{Style.RESET_ALL}")
+                result['health'] = max(0, result['health'] - penalty)
+            elif stat == 'health':
+                if not quiet:
+                    print(f"{Fore.RED}Warning: Zero health for {zero_stat_turns[stat]} turns! -{penalty} energy and happiness{Style.RESET_ALL}")
+                result['energy'] = max(0, result['energy'] - penalty)
+                result['happiness'] = max(0, result['happiness'] - penalty)
+        else:
+            zero_stat_turns[stat] = 0
+            
+    return result
+
 def simulate_run(rationality, initial_money, risk_tolerance=0.0, steps=10, manual_mode=False, quiet=False, record_actions=False, global_addiction_pred=1.0):
     """Add risk_tolerance parameter with default neutral value"""
     # Initialize current addiction levels multiplicatively.
@@ -227,30 +255,19 @@ def simulate_run(rationality, initial_money, risk_tolerance=0.0, steps=10, manua
                 current_points['money'] += adjusted_values['money']
         
         # Apply breakdown penalties
-        for stat in ['energy', 'health', 'happiness']:
-            if current_points[stat] == 0:
-                zero_stat_turns[stat] += 1
-                penalty = calculate_breakdown_penalty(zero_stat_turns[stat])
-                if stat == 'energy':
-                    # Energy at zero damages both health and happiness
-                    if not quiet:
-                        print(f"{Fore.RED}Warning: Zero energy for {zero_stat_turns[stat]} turns! -{penalty} health and happiness{Style.RESET_ALL}")
-                    current_points['health'] = max(0, current_points['health'] - penalty)
-                    current_points['happiness'] = max(0, current_points['happiness'] - penalty)
-                elif stat == 'happiness':
-                    # Happiness at zero damages health
-                    if not quiet:
-                        print(f"{Fore.RED}Warning: Zero happiness for {zero_stat_turns[stat]} turns! -{penalty} health{Style.RESET_ALL}")
-                    current_points['health'] = max(0, current_points['health'] - penalty)
-                elif stat == 'health':
-                    # Health at zero damages both energy and happiness
-                    if not quiet:
-                        print(f"{Fore.RED}Warning: Zero health for {zero_stat_turns[stat]} turns! -{penalty} energy and happiness{Style.RESET_ALL}")
-                    current_points['energy'] = max(0, current_points['energy'] - penalty)
-                    current_points['happiness'] = max(0, current_points['happiness'] - penalty)
-            else:
-                zero_stat_turns[stat] = 0
+        current_points = check_and_apply_penalties(current_points, zero_stat_turns, quiet)
+
+        # After updating points from action
+        current_points = check_and_apply_penalties(current_points, zero_stat_turns, quiet)
         
+        # Check for total breakdown only after all penalties are properly applied
+        if all(current_points[k] == 0 for k in ['energy', 'health', 'happiness']):
+            if not quiet:
+                print(f"\n{Fore.RED}=== CRITICAL FAILURE ==={Style.RESET_ALL}")
+                print(f"{Fore.RED}The AI has suffered a complete breakdown.{Style.RESET_ALL}")
+                print(f"{Fore.RED}All vital stats depleted to zero.{Style.RESET_ALL}")
+            break
+
         # Check for events after action is chosen
         sim_state = {
             'current_points': current_points,
@@ -337,81 +354,82 @@ def simulate_run(rationality, initial_money, risk_tolerance=0.0, steps=10, manua
             chosen_actions_list, addiction_overrides, addiction_levels, was_death_game)
 
 def interactive_mode():
-    try:
-        rationality = float(input("Enter rationality (0 to 1): "))
-        if not 0 <= rationality <= 1:
-            raise ValueError
-    except ValueError:
-        print("Invalid input. Using default rationality of 0.5")
-        rationality = 0.5
-
-    try:
-        steps = int(input("Enter number of moves (steps): "))
-    except ValueError:
-        print("Invalid input. Using default of 10 moves.")
-        steps = 10
-
-    try:
-        initial_money = float(input("Enter initial money amount: "))
-    except ValueError:
-        print("Invalid input. Using default of 1000 money")
-        initial_money = 1000
-
-    try:
-        global_addiction_pred = float(input("Enter global addiction predisposition multiplier: "))
-    except ValueError:
-        print("Invalid input. Using default predisposition of 1.0")
-        global_addiction_pred = 1.0
-
-    last_parameters = (rationality, steps, global_addiction_pred, initial_money)
-
-    try:
-        risk_tolerance = float(input("Enter risk tolerance (-1 to 1): "))
-        if not -1 <= risk_tolerance <= 1:
-            raise ValueError
-    except ValueError:
-        print("Invalid input. Using neutral risk tolerance (0.0)")
-        risk_tolerance = 0.0
-
-    while True:
-        manual_input = input("Do you want manual mode? (1 for yes, 0 for no): ")
-        manual_mode = True if manual_input == "1" else False
-
-        # Save the current parameters to allow repeats with the same values
-        last_parameters = (rationality, steps, manual_mode, global_addiction_pred, initial_money)
-
-        # Display initial effective addiction levels
-        print("Initial effective addiction levels:")
-        for addiction in BASE_ADDICTION:
-            base_val = BASE_ADDICTION[addiction]
-            if base_val > 0:
-                effective_val = base_val * global_addiction_pred
-                print(f"  {addiction}: {Fore.GREEN}{effective_val*100:.1f}%{Style.RESET_ALL}")
-
-        # Run the simulation
-        simulate_run(rationality, initial_money, risk_tolerance=risk_tolerance, 
-                     steps=steps, manual_mode=manual_mode, quiet=False, 
-                     record_actions=True, global_addiction_pred=global_addiction_pred)
-
-        # Ask if the user wants to repeat the simulation
-        repeat = input("How many times to repeat the simulation? (0 for none): ")
+    while True:  # Main interaction loop
         try:
-            repeat = int(repeat)
+            rationality = float(input("Enter rationality (0 to 1): "))
+            if not 0 <= rationality <= 1:
+                raise ValueError
         except ValueError:
-            print("Invalid input. Not repeating the simulation.")
-            repeat = 0
+            print("Invalid input. Using default rationality of 0.5")
+            rationality = 0.5
 
-        if repeat == 0:
-            break
-        elif repeat == 1:
-            pass
-        else:
-            (rationality, steps, manual_mode, global_addiction_pred, initial_money) = last_parameters
-            # We already ran one simulation so run the simulation (repeat - 1) more times.
-            for _ in range(repeat - 1):
-                simulate_run(rationality, initial_money, risk_tolerance=risk_tolerance, 
-                             steps=steps, manual_mode=manual_mode, quiet=False, 
-                             record_actions=True, global_addiction_pred=global_addiction_pred)
+        try:
+            steps = int(input("Enter number of moves (steps): "))
+        except ValueError:
+            print("Invalid input. Using default of 10 moves.")
+            steps = 10
+
+        try:
+            initial_money = float(input("Enter initial money amount: "))
+        except ValueError:
+            print("Invalid input. Using default of 1000 money")
+            initial_money = 1000
+
+        try:
+            global_addiction_pred = float(input("Enter global addiction predisposition multiplier: "))
+        except ValueError:
+            print("Invalid input. Using default predisposition of 1.0")
+            global_addiction_pred = 1.0
+
+        last_parameters = (rationality, steps, global_addiction_pred, initial_money)
+
+        try:
+            risk_tolerance = float(input("Enter risk tolerance (-1 to 1): "))
+            if not -1 <= risk_tolerance <= 1:
+                raise ValueError
+        except ValueError:
+            print("Invalid input. Using neutral risk tolerance (0.0)")
+            risk_tolerance = 0.0
+
+        while True:
+            manual_input = input("Do you want manual mode? (1 for yes, 0 for no): ")
+            manual_mode = True if manual_input == "1" else False
+
+            # Save the current parameters to allow repeats with the same values
+            last_parameters = (rationality, steps, manual_mode, global_addiction_pred, initial_money)
+
+            # Display initial effective addiction levels
+            print("Initial effective addiction levels:")
+            for addiction in BASE_ADDICTION:
+                base_val = BASE_ADDICTION[addiction]
+                if base_val > 0:
+                    effective_val = base_val * global_addiction_pred
+                    print(f"  {addiction}: {Fore.GREEN}{effective_val*100:.1f}%{Style.RESET_ALL}")
+
+            # Run the simulation
+            simulate_run(rationality, initial_money, risk_tolerance=risk_tolerance, 
+                         steps=steps, manual_mode=manual_mode, quiet=False, 
+                         record_actions=True, global_addiction_pred=global_addiction_pred)
+
+            # Only ask about repeating after the simulation is completely finished
+            if not manual_mode:  # Only offer repeats in auto mode
+                repeat = input("\nHow many times to repeat the simulation? (0 for none): ")
+                try:
+                    repeat = int(repeat)
+                except ValueError:
+                    print("Invalid input. Not repeating the simulation.")
+                    repeat = 0
+
+                if repeat > 1:
+                    for _ in range(repeat - 1):
+                        simulate_run(rationality, initial_money, risk_tolerance=risk_tolerance, 
+                                   steps=steps, manual_mode=False, quiet=False, 
+                                   record_actions=True, global_addiction_pred=global_addiction_pred)
+
+            # Ask if user wants to start a new simulation with new parameters
+            new_sim = input("\nStart new simulation with different parameters? (1 for yes, 0 for no): ")
+            if new_sim != "1":
+                break
 
 if __name__ == "__main__":
     interactive_mode()
