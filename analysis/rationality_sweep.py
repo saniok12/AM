@@ -20,12 +20,25 @@ def rationality_sweep_mode(default_simulations=None, steps=10):
     health_averages = []
     happiness_averages = []
 
+    try:
+        risk_tolerance = float(input("Enter risk tolerance (-1 to 1): "))
+        if not -1 <= risk_tolerance <= 1:
+            raise ValueError
+    except ValueError:
+        print("Invalid input. Using neutral risk tolerance (0.0)")
+        risk_tolerance = 0.0
+
     print(f"{Fore.GREEN}Sweeping through rationality values...{Style.RESET_ALL}")
     for r in rationality_values:
         total_energy, total_health, total_happiness = 0, 0, 0
         for _ in range(num_simulations):
-            # Update to unpack all 8 returned values
-            final_points, _, _, _, _, _, _, _ = simulate_run(r, steps=steps, manual_mode=False, quiet=True)
+            final_points, _, _, _, _, _, _, _ = simulate_run(
+                r, 
+                risk_tolerance=risk_tolerance,
+                steps=steps, 
+                manual_mode=False, 
+                quiet=True
+            )
             total_energy += final_points["energy"]
             total_health += final_points["health"]
             total_happiness += final_points["happiness"]

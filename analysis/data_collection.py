@@ -37,7 +37,7 @@ def data_collection_mode():
                 print(f"  {addiction}: {Fore.GREEN}{effective_val*100:.1f}%{Style.RESET_ALL}")
 
         rationality_input = input("Enter rationality (0 to 1) or type 'sweep' for a rationality sweep: ").strip().lower()
-        if rationality_input == "sweep":
+        if (rationality_input == "sweep"):
             from analysis.rationality_sweep import rationality_sweep_mode
             rationality_sweep_mode(default_simulations=num_simulations, steps=steps)
             rerun = input(f"\n{Fore.CYAN}Do you want to run another data collection? (1 for yes, 0 for no): {Style.RESET_ALL}")
@@ -61,11 +61,17 @@ def data_collection_mode():
         chosen_actions = []
         total_rational = 0
         total_random = 0
-        simulation_results = {'energy': [], 'health': [], 'happiness': []}
+        simulation_results = {
+            'energy': [],
+            'health': [], 
+            'happiness': [], 
+            'money': []
+        }
         evolution = {
             'energy': [0] * steps,
             'health': [0] * steps,
-            'happiness': [0] * steps
+            'happiness': [0] * steps,
+            'money': [0] * steps  # Add money to evolution tracking
         }
 
         # Initialize tolerance tracking across simulations
@@ -104,13 +110,15 @@ def data_collection_mode():
         }
 
         # Run simulations once and collect all data
+        initial_money = float(input("Enter initial money amount: "))
         for _ in range(num_simulations):
             result = simulate_run(
-                rationality, 
-                steps=steps, 
-                manual_mode=False, 
-                quiet=True, 
-                record_actions=True, 
+                rationality,
+                initial_money,  # Pass initial_money here
+                steps=steps,
+                manual_mode=False,
+                quiet=True,
+                record_actions=True,
                 global_addiction_pred=global_addiction_pred
             )
             
@@ -119,13 +127,13 @@ def data_collection_mode():
             # Process death game results
             if was_death_game:
                 death_game_stats['total'] += 1
-                if all(final_points[k] == 50 for k in final_points):
+                if all(final_points[k] == 50 for k in ['energy', 'health', 'happiness']):  # Check only vital stats
                     death_game_stats['wins'] += 1
                 else:
                     death_game_stats['losses'] += 1
 
-            # Check for breakdowns
-            if all(final_points[k] == 0 for k in final_points):
+            # Check for breakdowns based on vital stats only (excluding money)
+            if all(final_points[k] == 0 for k in ['energy', 'health', 'happiness']):
                 total_breakdowns += 1
                 survival_times.append(len(time_series))
                 
@@ -158,6 +166,7 @@ def data_collection_mode():
                 evolution['energy'][i] += points_dict['energy']
                 evolution['health'][i] += points_dict['health']
                 evolution['happiness'][i] += points_dict['happiness']
+                evolution['money'][i] += points_dict['money']  # Add money evolution
 
             # Track tolerance zones across all simulations
             for addiction, timeline in levels.items():
@@ -188,6 +197,10 @@ def data_collection_mode():
                 'median': statistics.median(values)
             }
 
+        # Add money-related statistics
+        money_changes = [final_points['money'] - initial_money for final_points in all_final_points]
+        avg_money_change = statistics.mean(money_changes)
+
         if stats_config['basic']:
             print(f"\n{Fore.CYAN}After {num_simulations} simulations, statistics for final points:{Style.RESET_ALL}")
             for key in stats:
@@ -200,6 +213,7 @@ def data_collection_mode():
                     f"Std Dev = {stats[key]['std_dev']:.2f}, "
                     f"Median = {stats[key]['median']}"
                 )
+            print(f"\n{Fore.GREEN}Average money change: {avg_money_change:.2f}{Style.RESET_ALL}")
 
             print(f"\n{Fore.MAGENTA}Total rational decisions:{Style.RESET_ALL} {total_rational}")
             print(f"{Fore.MAGENTA}Total random decisions:{Style.RESET_ALL} {total_random}")
@@ -240,6 +254,7 @@ def data_collection_mode():
                 avg_evolution['energy'].append(evolution['energy'][i] / num_simulations)
                 avg_evolution['health'].append(evolution['health'][i] / num_simulations)
                 avg_evolution['happiness'].append(evolution['happiness'][i] / num_simulations)
+                avg_evolution['money'].append(evolution['money'][i] / num_simulations)  # Add money evolution
             plot_evolution(avg_evolution, steps, rationality)  # Changed from 'moves' to 'steps'
 
         if stats_config['addiction']:
