@@ -82,7 +82,7 @@ def simulate_run(rationality, initial_money, risk_tolerance=0.0, steps=10, manua
 
     # In simulate_run, add after initialization:
     # Track how many turns stats have been at zero
-    zero_stat_turns = {'energy': 0, 'health': 0}
+    zero_stat_turns = {'energy': 0, 'health': 0, 'happiness': 0}
 
     # Add was_death_game flag
     was_death_game = False
@@ -227,13 +227,27 @@ def simulate_run(rationality, initial_money, risk_tolerance=0.0, steps=10, manua
                 current_points['money'] += adjusted_values['money']
         
         # Apply breakdown penalties
-        for stat in ['energy', 'health']:
+        for stat in ['energy', 'health', 'happiness']:
             if current_points[stat] == 0:
                 zero_stat_turns[stat] += 1
                 penalty = calculate_breakdown_penalty(zero_stat_turns[stat])
-                if not quiet:
-                    print(f"{Fore.RED}Warning: Zero {stat} for {zero_stat_turns[stat]} turns! -{penalty} happiness{Style.RESET_ALL}")
-                current_points['happiness'] = max(0, current_points['happiness'] - penalty)
+                if stat == 'energy':
+                    # Energy at zero damages both health and happiness
+                    if not quiet:
+                        print(f"{Fore.RED}Warning: Zero energy for {zero_stat_turns[stat]} turns! -{penalty} health and happiness{Style.RESET_ALL}")
+                    current_points['health'] = max(0, current_points['health'] - penalty)
+                    current_points['happiness'] = max(0, current_points['happiness'] - penalty)
+                elif stat == 'happiness':
+                    # Happiness at zero damages health
+                    if not quiet:
+                        print(f"{Fore.RED}Warning: Zero happiness for {zero_stat_turns[stat]} turns! -{penalty} health{Style.RESET_ALL}")
+                    current_points['health'] = max(0, current_points['health'] - penalty)
+                elif stat == 'health':
+                    # Health at zero damages both energy and happiness
+                    if not quiet:
+                        print(f"{Fore.RED}Warning: Zero health for {zero_stat_turns[stat]} turns! -{penalty} energy and happiness{Style.RESET_ALL}")
+                    current_points['energy'] = max(0, current_points['energy'] - penalty)
+                    current_points['happiness'] = max(0, current_points['happiness'] - penalty)
             else:
                 zero_stat_turns[stat] = 0
         

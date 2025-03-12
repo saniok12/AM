@@ -59,10 +59,10 @@ def calculate_bet_parameters(profile_name: str, risk_tolerance: float,
     
     # Interpolate within profile ranges
     win_chance = profile.min_chance + (profile.max_chance - profile.min_chance) * (1 - risk_factor)
-    payout = profile.min_payout + (profile.max_payout - profile.min_payout) * risk_factor
+    payout = profile.min_payout + (profile.max_payout - profile.max_payout) * risk_factor
     
     # Bet percentage influenced by both risk and addiction
-    base_bet_pct = profile.min_bet_pct + (profile.max_bet_pct - profile.min_bet_pct) * risk_factor
+    base_bet_pct = profile.min_bet_pct + (profile.max_bet_pct - profile.max_bet_pct) * risk_factor
     # Addiction increases bet size
     final_bet_pct = min(1.0, base_bet_pct * (1 + addiction_level))
     
@@ -131,6 +131,8 @@ class DebtCollector:
                 money_change -= to_repay
                 if current_money >= to_repay:
                     messages.append(f"{Fore.GREEN}Paid back Ƶ{to_repay} loan!{Style.RESET_ALL}")
+                    self.total_debt -= to_repay  # Reduce total debt when paid
+                    self.loan_count = max(0, self.loan_count - 1)  # Reduce loan count but not below 0
                 else:
                     messages.append(
                         f"{Fore.RED}Failed to repay Ƶ{to_repay}! "
@@ -196,13 +198,22 @@ def execute_gambling(current_points: dict, risk_tolerance: float,
     if random.random() < win_chance:
         winnings = int(bet * payout)
         money_change = winnings - bet
+        # Scale stat boosts based on risk profile
+        if profile_name == "high_risk":
+            energy_boost = 10
+            happiness_boost = 15
+            win_message = f"{Fore.GREEN}JACKPOT! The risky bet pays off big time! +Ƶ{money_change}!{Style.RESET_ALL}"
+        elif profile_name == "medium_risk":
+            energy_boost = 6
+            happiness_boost = 10
+            win_message = f"{Fore.GREEN}Success! A nice win of Ƶ{winnings}! (Net: +Ƶ{money_change}){Style.RESET_ALL}"
+        else:
+            energy_boost = 3
+            happiness_boost = 5
+            win_message = f"{Fore.GREEN}A safe bet brings a steady profit of Ƶ{winnings}! (Net: +Ƶ{money_change}){Style.RESET_ALL}"
+        
         if not quiet:
-            if profile_name == "high_risk":
-                print(f"{Fore.GREEN}JACKPOT! The risky bet pays off big time! +Ƶ{money_change}!{Style.RESET_ALL}")
-            elif profile_name == "medium_risk":
-                print(f"{Fore.GREEN}Success! A nice win of Ƶ{winnings}! (Net: +Ƶ{money_change}){Style.RESET_ALL}")
-            else:
-                print(f"{Fore.GREEN}A safe bet brings a steady profit of Ƶ{winnings}! (Net: +Ƶ{money_change}){Style.RESET_ALL}")
+            print(win_message)
     else:
         money_change = -bet
         if not quiet:
@@ -212,18 +223,20 @@ def execute_gambling(current_points: dict, risk_tolerance: float,
                 print(f"{Fore.RED}The risk didn't pay off. Lost Ƶ{bet}.{Style.RESET_ALL}")
             else:
                 print(f"{Fore.RED}Even the safe bet didn't work out. Lost Ƶ{bet}.{Style.RESET_ALL}")
+        energy_boost = 0
+        happiness_boost = -2  # Keep existing happiness penalty for losses
     
     # Update and return new points with clamping
     result = current_points.copy()
     result['money'] = max(0, result['money'] + money_change)  # Prevent negative money
-    result['energy'] = clamp(result['energy'] - 2)  # Clamp energy
-    result['happiness'] = clamp(result['happiness'] + (6 if money_change > 0 else -2))  # Clamp happiness
+    result['energy'] = clamp(result['energy'] - 2 + energy_boost)  # Base energy cost + potential boost
+    result['happiness'] = clamp(result['happiness'] + happiness_boost)  # Win bonus or loss penalty
     
     # Before returning, update loans
     debt_change, debt_message = execute_gambling.debt_collector.update_loans(result['money'])
     if not quiet and debt_message:
         print(debt_message)
-    result['money'] = max(0, result['money'] + debt_change)  # This line is correct, keeps it at 0 if debt makes it negative
+    result['money'] = max(0, result['money'] + debt_change)  
     
     # After debt message but before returning
     if not quiet and execute_gambling.debt_collector.total_debt > 0:
