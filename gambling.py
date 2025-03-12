@@ -127,14 +127,14 @@ class DebtCollector:
         
         for amount, turns, to_repay in self.active_loans:
             if turns <= 1:
+                # Always subtract the repayment amount
+                money_change -= to_repay
                 if current_money >= to_repay:
-                    money_change -= to_repay
                     messages.append(f"{Fore.GREEN}Paid back Ƶ{to_repay} loan!{Style.RESET_ALL}")
                 else:
-                    money_change -= to_repay
                     messages.append(
                         f"{Fore.RED}Failed to repay Ƶ{to_repay}! "
-                        f"The debt collectors are not happy...{Style.RESET_ALL}"
+                        f"The debt collectors take everything...{Style.RESET_ALL}"
                     )
             else:
                 new_loans.append((amount, turns - 1, to_repay))
@@ -182,6 +182,11 @@ def execute_gambling(current_points: dict, risk_tolerance: float,
             "medium_risk": f"{Fore.YELLOW}Taking a calculated risk with a balanced bet...{Style.RESET_ALL}",
             "high_risk": f"{Fore.RED}Going all in with a high-stakes gamble!{Style.RESET_ALL}"
         }
+        
+        # Show current total debt if any exists
+        if execute_gambling.debt_collector.total_debt > 0:
+            print(f"{Fore.RED}Current total debt: Ƶ{execute_gambling.debt_collector.total_debt}{Style.RESET_ALL}")
+            
         print(f"\n{profile_descriptions[profile_name]}")
         print(f"Win Chance: {win_chance*100:.1f}%")
         print(f"Payout: {payout:.1f}x")
@@ -218,6 +223,10 @@ def execute_gambling(current_points: dict, risk_tolerance: float,
     debt_change, debt_message = execute_gambling.debt_collector.update_loans(result['money'])
     if not quiet and debt_message:
         print(debt_message)
-    result['money'] = max(0, result['money'] + debt_change)
+    result['money'] = max(0, result['money'] + debt_change)  # This line is correct, keeps it at 0 if debt makes it negative
+    
+    # After debt message but before returning
+    if not quiet and execute_gambling.debt_collector.total_debt > 0:
+        print(f"{Fore.RED}Remaining total debt: Ƶ{execute_gambling.debt_collector.total_debt}{Style.RESET_ALL}")
     
     return result
