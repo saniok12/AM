@@ -69,17 +69,14 @@ def simulate_run(rationality, initial_money, risk_tolerance=GAME_CONFIG['SIMULAT
                 steps=GAME_CONFIG['SIMULATION']['DEFAULT_STEPS'], 
                 manual_mode=False, quiet=False, record_actions=False, 
                 global_addiction_pred=GAME_CONFIG['SIMULATION']['DEFAULT_ADDICTION_PRED']):
-    """Add risk_tolerance parameter with default neutral value"""
-    # Create initial game state
+    """Run a single simulation with given parameters."""
     state = GameState.create_initial(initial_money, GAME_CONFIG['BASE_ADDICTION'], global_addiction_pred)
     
     for move in range(1, steps + 1):
         show_stats(state.current_points, quiet)
-        
-        # Action selection phase
         pool = generate_action_pool(actions)
         pool = bias_pool_for_addictions(pool, state.current_addictions, actions)
-        # ... rest of logic
+        # ... rest of simulation logic
 
 def interactive_mode():
     while True:  # Main interaction loop
