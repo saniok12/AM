@@ -34,10 +34,8 @@ def compute_weighted_sum(action, current_points):
     
     # Add money weight if present
     if 'money' in current_points:
-        if current_points['money'] == 0 and action['name'] == "gamble":
-            total = -9999  # Very negative weight to avoid gambling with no money
-        else:
-            total += compute_money_weight(action, current_points['money'])
+        # Remove the gambling penalization since addiction override should work regardless of money
+        total += compute_money_weight(action, current_points['money'])
     
     return total
 
