@@ -34,7 +34,10 @@ def compute_weighted_sum(action, current_points):
     
     # Add money weight if present
     if 'money' in current_points:
-        total += compute_money_weight(action, current_points['money'])
+        if current_points['money'] == 0 and action['name'] == "gamble":
+            total = -9999  # Very negative weight to avoid gambling with no money
+        else:
+            total += compute_money_weight(action, current_points['money'])
     
     return total
 
@@ -257,9 +260,6 @@ def simulate_run(rationality, initial_money, risk_tolerance=0.0, steps=10, manua
         # Apply breakdown penalties
         current_points = check_and_apply_penalties(current_points, zero_stat_turns, quiet)
 
-        # After updating points from action
-        current_points = check_and_apply_penalties(current_points, zero_stat_turns, quiet)
-        
         # Check for total breakdown only after all penalties are properly applied
         if all(current_points[k] == 0 for k in ['energy', 'health', 'happiness']):
             if not quiet:
