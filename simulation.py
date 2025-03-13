@@ -1,30 +1,18 @@
 import random
 from actions import actions
 from colorama import init, Fore, Style
-from events import EVENTS, DeathGameEvent  # Add this import at the top
-from economy import compute_money_weight  # Add at top with other imports
-from economy import color_money
-from risk import calculate_risk_adjusted_values  # Add to imports
-from gambling import execute_gambling  # Add to imports
+from events import EVENTS, DeathGameEvent
+from economy import compute_money_weight, color_money
+from risk import calculate_risk_adjusted_values
+from gambling import execute_gambling
 from utils import clamp
 from game_state import GameState
 from action_manager import generate_action_pool, bias_pool_for_addictions
 from addiction_system import check_addiction_triggers
-from display import format_action_display, show_stats
+from display import format_action_display, show_stats, color_points, color_cost
+from config import GAME_CONFIG
 
 init()  # Initialize colorama for colored terminal output
-
-# Base addiction chances for each type.
-BASE_ADDICTION = {
-    "gambling": 0.425,
-    "alcohol": 0,    
-    "shopping": 0,
-    "junk_food": 0
-}
-
-# Add these constants at the top of the file after BASE_ADDICTION
-BREAKDOWN_BASE_PENALTY = 5
-BREAKDOWN_MULTIPLIER = 2.0  # Each turn at zero doubles the penalty
 
 def clamp(value, min_value=0, max_value=50):
     return max(min_value, min(max_value, value))
@@ -43,28 +31,11 @@ def compute_weighted_sum(action, current_points):
     
     return total
 
-def color_points(value):
-    """Color the numeric points based on thresholds."""
-    if value < 10:
-        return f"{Fore.RED}{value}{Style.RESET_ALL}"
-    elif value < 35:
-        return f"{Fore.YELLOW}{value}{Style.RESET_ALL}"
-    else:
-        return f"{Fore.GREEN}{value}{Style.RESET_ALL}"
-
-def color_cost(amount):
-    """Color the cost in brackets: positive in green, negative in red, zero in default."""
-    if amount > 0:
-        return f"{Fore.GREEN}+{amount}{Style.RESET_ALL}"
-    elif amount < 0:
-        return f"{Fore.RED}{amount}{Style.RESET_ALL}"
-    else:
-        return f"{amount}"
-
-# Add this function after the existing helper functions
 def calculate_breakdown_penalty(turns_at_zero):
     """Calculate exponentially increasing happiness penalty."""
-    return min(50, BREAKDOWN_BASE_PENALTY * (BREAKDOWN_MULTIPLIER ** (turns_at_zero - 1)))
+    return min(GAME_CONFIG['STATS']['MAX_VALUE'], 
+              GAME_CONFIG['BREAKDOWN']['BASE_PENALTY'] * 
+              (GAME_CONFIG['BREAKDOWN']['MULTIPLIER'] ** (turns_at_zero - 1)))
 
 def check_and_apply_penalties(current_points: dict, zero_stat_turns: dict, quiet: bool = False) -> dict:
     """Check each stat and apply penalties if at zero"""
@@ -94,10 +65,13 @@ def check_and_apply_penalties(current_points: dict, zero_stat_turns: dict, quiet
             
     return result
 
-def simulate_run(rationality, initial_money, risk_tolerance=0.0, steps=10, manual_mode=False, quiet=False, record_actions=False, global_addiction_pred=1.0):
+def simulate_run(rationality, initial_money, risk_tolerance=GAME_CONFIG['SIMULATION']['DEFAULT_RISK_TOLERANCE'], 
+                steps=GAME_CONFIG['SIMULATION']['DEFAULT_STEPS'], 
+                manual_mode=False, quiet=False, record_actions=False, 
+                global_addiction_pred=GAME_CONFIG['SIMULATION']['DEFAULT_ADDICTION_PRED']):
     """Add risk_tolerance parameter with default neutral value"""
     # Create initial game state
-    state = GameState.create_initial(initial_money, BASE_ADDICTION, global_addiction_pred)
+    state = GameState.create_initial(initial_money, GAME_CONFIG['BASE_ADDICTION'], global_addiction_pred)
     
     for move in range(1, steps + 1):
         show_stats(state.current_points, quiet)
@@ -114,26 +88,26 @@ def interactive_mode():
             if not 0 <= rationality <= 1:
                 raise ValueError
         except ValueError:
-            print("Invalid input. Using default rationality of 0.5")
-            rationality = 0.5
+            print(f"Invalid input. Using default rationality of {GAME_CONFIG['SIMULATION']['DEFAULT_RATIONALITY']}")
+            rationality = GAME_CONFIG['SIMULATION']['DEFAULT_RATIONALITY']
 
         try:
             steps = int(input("Enter number of moves (steps): "))
         except ValueError:
-            print("Invalid input. Using default of 10 moves.")
-            steps = 10
+            print(f"Invalid input. Using default of {GAME_CONFIG['SIMULATION']['DEFAULT_STEPS']} moves.")
+            steps = GAME_CONFIG['SIMULATION']['DEFAULT_STEPS']
 
         try:
             initial_money = float(input("Enter initial money amount: "))
         except ValueError:
-            print("Invalid input. Using default of 1000 money")
-            initial_money = 1000
+            print(f"Invalid input. Using default of {GAME_CONFIG['SIMULATION']['DEFAULT_INITIAL_MONEY']} money")
+            initial_money = GAME_CONFIG['SIMULATION']['DEFAULT_INITIAL_MONEY']
 
         try:
             global_addiction_pred = float(input("Enter global addiction predisposition multiplier: "))
         except ValueError:
-            print("Invalid input. Using default predisposition of 1.0")
-            global_addiction_pred = 1.0
+            print(f"Invalid input. Using default predisposition of {GAME_CONFIG['SIMULATION']['DEFAULT_ADDICTION_PRED']}")
+            global_addiction_pred = GAME_CONFIG['SIMULATION']['DEFAULT_ADDICTION_PRED']
 
         last_parameters = (rationality, steps, global_addiction_pred, initial_money)
 
@@ -142,8 +116,8 @@ def interactive_mode():
             if not -1 <= risk_tolerance <= 1:
                 raise ValueError
         except ValueError:
-            print("Invalid input. Using neutral risk tolerance (0.0)")
-            risk_tolerance = 0.0
+            print(f"Invalid input. Using neutral risk tolerance ({GAME_CONFIG['SIMULATION']['DEFAULT_RISK_TOLERANCE']})")
+            risk_tolerance = GAME_CONFIG['SIMULATION']['DEFAULT_RISK_TOLERANCE']
 
         while True:
             manual_input = input("Do you want manual mode? (1 for yes, 0 for no): ")
@@ -154,8 +128,8 @@ def interactive_mode():
 
             # Display initial effective addiction levels
             print("Initial effective addiction levels:")
-            for addiction in BASE_ADDICTION:
-                base_val = BASE_ADDICTION[addiction]
+            for addiction in GAME_CONFIG['BASE_ADDICTION']:
+                base_val = GAME_CONFIG['BASE_ADDICTION'][addiction]
                 if base_val > 0:
                     effective_val = base_val * global_addiction_pred
                     print(f"  {addiction}: {Fore.GREEN}{effective_val*100:.1f}%{Style.RESET_ALL}")
